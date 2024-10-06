@@ -12,10 +12,12 @@ input = arquivoHTML.read()
 
 # Regex que identifica abertura HTML que valida tags que podem conter
 # multiplas classes css
-iniTagValidatorRegex = '(<\w+(\s\w+(="((\w+)|([\w-]+:\w+;?))*")?)*\s*>)'
+iniTagValidatorRegex = '(<\w+(\s(\w+)(="((\w+)|(((\w+-?\w+):(\w+);?)+))*")?)*\s*>)'
 
 # Regex para identificar fechamento de tags
 finalTagValidatorRegex = '(<\/\w+>)'
+
+cssRegex = '(\w+):(\w+);?|(\w+)'
 
 # Arrays para guardar aberturas e fechamentos de tags
 iniHtmlTags = []
@@ -31,16 +33,55 @@ class HTML_Tag:
     def __init__(self, startTag, endTag = None):
         
         self.iniTag = startTag.tagFullContent
-        self.endTag = endTag.tagFullContent
         self.startTagIndexes = [startTag.startIndex, startTag.endIndex]
-        self.endTagIndexes = [endTag.startIndex, endTag.endIndex]
         
-        print(vars(self))
+        if endTag:
+            self.endTag = endTag.tagFullContent
+            self.endTagIndexes = [endTag.startIndex, endTag.endIndex]
+            self.setInnerContent()
+        
+        self.setAttributesAndValues()
+        print(vars(self),"\n\n")
+    
+        
+        # print(input[self.endTagIndexes[0]:self.endTagIndexes[1]],"\n\n")
     
     # Retorna o nome da tag
     def getTagName(self, tag):
         preparingTag = re.sub(r'[<>\/]','',tag)
         return re.search(r'\w+',preparingTag).group()
+    
+    def setAttributesAndValues(self):
+        attributes = {}
+        subAttributeValues = {}
+        fullTag = self.iniTag
+        
+        # print(re.search(iniTagValidatorRegex,fullTag).groups())
+        
+        attributeName = re.search(iniTagValidatorRegex,fullTag).groups()[2]
+        attributeValue = str(re.search(iniTagValidatorRegex,fullTag).groups()[3])
+        attributeValue = re.sub(r'[="]','', attributeValue)
+        
+        arrayAttributesValues = re.split(';',attributeValue)
+        
+        
+        for subValuesAttributes in arrayAttributesValues :
+            if subValuesAttributes:
+                subValuesAttributesString = re.findall(cssRegex, subValuesAttributes)[0]
+                # print(subValuesAttributesString)
+                subAttributeValues[subValuesAttributesString[0]]=subValuesAttributesString[1]
+                # print(subValuesAttributesString)
+        
+        if (attributeName):
+            attributes[attributeName] = subAttributeValues
+            
+        # print(attributes)
+        
+        self.attributes  = attributes
+            
+    def setInnerContent(self):
+        self.innerHTML = input[self.startTagIndexes[1]:self.endTagIndexes[0]]
+    
     
     # Retorna o próprio objeto
     def getObject(self):
@@ -69,7 +110,19 @@ def checkHTMLText(input):
     
     # For que percorre o array que contém todas as tags iniciais
     for iniTag in arrayIniHtmls:
-        endTagPositions = re.search(iniTag[0], input).span()
+        if not iniTag[0] in cacheIniTagsInfos:
+            endTagPositions = re.search(iniTag[0], input).span()
+            cacheIniTagsInfos[iniTag[0]] = endTagPositions
+        
+        else :
+            endTagPositions = re.search(iniTag[0], input[cacheIniTagsInfos[iniTag[0]][1]:]).span()
+            
+            newPositionsAbsolute = [
+                endTagPositions[1] + cacheIniTagsInfos[iniTag[0]][0] + 1,
+                endTagPositions[1] + cacheIniTagsInfos[iniTag[0]][1] + 1]
+            
+            cacheIniTagsInfos[iniTag[0]] = newPositionsAbsolute
+        
         objectIniTag = infosTag(iniTag[0], endTagPositions[0], endTagPositions[1])
         
         iniHtmlTags.insert(len(iniHtmlTags), objectIniTag)
@@ -80,36 +133,43 @@ def checkHTMLText(input):
         if not closerHtml in cacheEndTagsInfos:
             endTagPositions = re.search(closerHtml, input).span()
             cacheEndTagsInfos[closerHtml] = endTagPositions
-            
         else :
             endTagPositions = re.search(closerHtml, input[cacheEndTagsInfos[closerHtml][1]:]).span()
-            cacheEndTagsInfos[closerHtml] = endTagPositions
-        # print(cacheEndTagsInfos)
-        
-        objectEndTag = infosTag(closerHtml, endTagPositions[0], endTagPositions[1])
+            
+            newPositionsAbsolute = [
+                endTagPositions[1] + cacheEndTagsInfos[closerHtml][0] + 1,
+                endTagPositions[1] + cacheEndTagsInfos[closerHtml][1] + 1]
+            
+            cacheEndTagsInfos[closerHtml] = newPositionsAbsolute
+            
+        objectEndTag = infosTag(closerHtml, cacheEndTagsInfos[closerHtml][0], cacheEndTagsInfos[closerHtml][1])
         closerHtmlTags.insert(len(closerHtmlTags), objectEndTag)
     
     occurrences = 0
     
     for index, iniTag in enumerate(iniHtmlTags):
+        whitEndTag = False
         
         for toCompareIniTag in iniHtmlTags[index + 1:]:
-            
             if (iniTag.tagName == toCompareIniTag.tagName):
-                occurrences += 1
+                for toCompareEndTag in closerHtmlTags:
+                    if(iniTag.tagName == toCompareEndTag.tagName and toCompareEndTag.startIndex > toCompareIniTag.startIndex):
+                        occurrences += 1
+                    else: break
         
         for toCompareEndTag in closerHtmlTags:
-            
-            if (iniTag.tagName == toCompareEndTag.tagName):
-                # print(vars(iniTag),"\n",vars(toCompareEndTag),"\n\n")
+            if (iniTag.tagName == toCompareEndTag.tagName and toCompareEndTag.startIndex > iniTag.startIndex):
                 if(occurrences == 0):
-                    
                     objectHtml = HTML_Tag(iniTag, toCompareEndTag)
-                    # HTMLTags.insert(len(HTMLTags),objectHtml.getObject())
+                    HTMLTags.insert(len(HTMLTags),objectHtml)
+                    whitEndTag = True
                     break
                 else :
                     occurrences -= 1
-                    
+        if whitEndTag == False:
+            objectHtml = HTML_Tag(iniTag)
+            HTMLTags.insert(len(HTMLTags),objectHtml)
+        
         occurrences = 0
         # continue
         
