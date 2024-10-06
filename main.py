@@ -34,6 +34,9 @@ class HTML_Tag:
         
         self.iniTag = startTag.tagFullContent
         self.startTagIndexes = [startTag.startIndex, startTag.endIndex]
+        self.nivel = self.checkNivel()
+        self.tagName = self.getTagName()
+        self.endTag = endTag
         
         if endTag:
             self.endTag = endTag.tagFullContent
@@ -41,14 +44,11 @@ class HTML_Tag:
             self.setInnerContent()
         
         self.setAttributesAndValues()
-        print(vars(self),"\n\n")
-    
-        
-        # print(input[self.endTagIndexes[0]:self.endTagIndexes[1]],"\n\n")
+        # print(vars(self),"\n\n")
     
     # Retorna o nome da tag
-    def getTagName(self, tag):
-        preparingTag = re.sub(r'[<>\/]','',tag)
+    def getTagName(self):
+        preparingTag = re.sub(r'[<>\/]','',self.iniTag)
         return re.search(r'\w+',preparingTag).group()
     
     def setAttributesAndValues(self):
@@ -86,6 +86,16 @@ class HTML_Tag:
     # Retorna o próprio objeto
     def getObject(self):
         return self
+    
+    def checkNivel(self):
+        slicedInput = input[0:self.startTagIndexes[0]]
+    
+        numOpenTag = len(re.findall(iniTagValidatorRegex, slicedInput))
+        numEndTags = len(re.findall(finalTagValidatorRegex, slicedInput))
+
+        # print(self.iniTag, numOpenTag - numEndTags - 1)
+
+        return numOpenTag - numEndTags
 
 class infosTag:
     
@@ -98,6 +108,7 @@ class infosTag:
         self.startIndex = startIndex
         self.endIndex = endIndex
         self.tagName = self.getTagName(tagFullContent)
+    
     
 # Função que chega uma entrada de texto HTML
 def checkHTMLText(input):
@@ -166,12 +177,32 @@ def checkHTMLText(input):
                     break
                 else :
                     occurrences -= 1
+                    
         if whitEndTag == False:
             objectHtml = HTML_Tag(iniTag)
             HTMLTags.insert(len(HTMLTags),objectHtml)
         
         occurrences = 0
-        # continue
+
+def listAllHTMLObjects(arrayHTML):
+    for element in arrayHTML:
+        print("\nTag de abertura: ", element.iniTag, "Nivel: ", element.nivel)
+        print("Nome da Tag: ", element.tagName, "\nIndex de Inicio e Fim da tag: ", element.startTagIndexes)
         
+        if element.attributes:
+            attributes = element.attributes
+            
+            for key in attributes:
+                print("Atributos: ", key)
+                for attributeKey in attributes[key]:
+                    print("Conteudo do", attributeKey, "|Valor: ",attributes[key][attributeKey])
+            
+        
+        if element.endTag:
+            print("Inner HTML: ", element.innerHTML)
+            print("Tag de fechamento: ", element.endTag, "\nIndex de Inicio e Fim da tag: ", element.endTagIndexes)
+        
+        print("\n")
     
 checkHTMLText(input)
+listAllHTMLObjects(HTMLTags)
