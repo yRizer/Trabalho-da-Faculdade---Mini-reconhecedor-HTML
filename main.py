@@ -68,9 +68,7 @@ class HTML_Tag:
         for subValuesAttributes in arrayAttributesValues :
             if subValuesAttributes:
                 subValuesAttributesString = re.findall(cssRegex, subValuesAttributes)[0]
-                # print(subValuesAttributesString)
                 subAttributeValues[subValuesAttributesString[0]]=subValuesAttributesString[1]
-                # print(subValuesAttributesString)
         
         if (attributeName):
             attributes[attributeName] = subAttributeValues
@@ -92,8 +90,6 @@ class HTML_Tag:
     
         numOpenTag = len(re.findall(iniTagValidatorRegex, slicedInput))
         numEndTags = len(re.findall(finalTagValidatorRegex, slicedInput))
-
-        # print(self.iniTag, numOpenTag - numEndTags - 1)
 
         return numOpenTag - numEndTags
 
